@@ -29,7 +29,7 @@ public class RequireDatabase : CheckBaseAttribute
         Console.WriteLine("Database is not connected! Command disabled.");
         var embedBuilder = new DiscordEmbedBuilder().WithTitle("Fehler: Datenbank nicht verbunden!")
             .WithDescription(
-                $"Command deaktiviert. Bitte informiere den Botentwickler ``{ctx.Client.GetUserAsync(GlobalProperties.BotOwnerId).Result.UsernameWithDiscriminator}``")
+                $"Command deaktiviert. Bitte informiere den Botentwickler ``{ctx.Client.GetUserAsync(CurrentApplication.GlobalProperties.BotOwnerId).Result.UsernameWithDiscriminator}``")
             .WithColor(DiscordColor.Red);
         var embed = embedBuilder.Build();
         var msg_e = new DiscordMessageBuilder().WithEmbed(embed).WithReply(ctx.Message.Id);
@@ -69,25 +69,5 @@ public class RequireTeamCat : CheckBaseAttribute
                                         ctx.Channel.ParentId == modMailCategoryId;
 
         return isChannelInValidCategory;
-    }
-}
-
-
-public class AGCEasterEggsEnabled : CheckBaseAttribute
-{
-    public override async Task<bool> ExecuteCheckAsync(CommandContext ctx, bool help)
-    {
-        // Check if AGC Setting is Enabled
-        try
-        {
-            if (bool.TrueString == BotConfig.GetConfig()["ServerConfig"]["EasterEggsEnabled"] &&
-                ctx.Guild.Id == 750365461945778209) return true;
-
-        }
-        catch (Exception)
-        {
-            // ignored
-        }
-        return false;
     }
 }

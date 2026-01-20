@@ -11,7 +11,7 @@ public static class DatabaseService
     {
         try
         {
-            var dbConfigSection = GlobalProperties.DebugMode ? "DatabaseCfgDBG" : "DatabaseCfg";
+            var dbConfigSection = CurrentApplication.GlobalProperties.DebugMode ? "DatabaseCfgDBG" : "DatabaseCfg";
             var DbHost = BotConfig.GetConfig()[dbConfigSection]["Database_Host"];
             var DbUser = BotConfig.GetConfig()[dbConfigSection]["Database_User"];
             var DbPass = BotConfig.GetConfig()[dbConfigSection]["Database_Password"];
@@ -83,7 +83,7 @@ public static class DatabaseService
 
     public static string GetConnectionString()
     {
-        var dbConfigSection = GlobalProperties.DebugMode ? "DatabaseCfgDBG" : "DatabaseCfg";
+        var dbConfigSection = CurrentApplication.GlobalProperties.DebugMode ? "DatabaseCfgDBG" : "DatabaseCfg";
         var DbHost = BotConfig.GetConfig()[dbConfigSection]["Database_Host"];
         var DbUser = BotConfig.GetConfig()[dbConfigSection]["Database_User"];
         var DbPass = BotConfig.GetConfig()[dbConfigSection]["Database_Password"];

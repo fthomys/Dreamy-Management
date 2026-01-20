@@ -13,6 +13,8 @@ public static class BotConfig
         FileIniDataParser parser = new();
         try
         {
+            var path = AppContext.BaseDirectory;
+            Console.WriteLine("Try to load from path: " + path);
             ConfigIni = parser.ReadFile("config.ini");
         }
         catch

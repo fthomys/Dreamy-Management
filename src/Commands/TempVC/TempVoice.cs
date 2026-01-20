@@ -9,6 +9,7 @@ using DisCatSharp.Interactivity.Extensions;
 using DreamyManagement.Helpers;
 using DreamyManagement.Helpers.TempVoice;
 using DreamyManagement.Services.DatabaseHandler;
+using DreamyManagement.Utils;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 
@@ -684,7 +685,7 @@ public class TempVoiceCommands : TempVoiceHelper
                     var kicklist = new List<ulong>();
                     List<ulong> ids = new();
                     ids = Converter.ExtractUserIDsFromString(users);
-                    var staffrole = ctx.Guild.GetRole(GlobalProperties.StaffRoleId);
+                    var staffrole = ctx.Guild.GetRole(CurrentApplication.GlobalProperties.StaffRoleId);
                     var msg = await ctx.RespondAsync(
                         $"<a:loading_agc:1084157150747697203> **Lade...** Versuche {ids.Count} Nutzer zu kicken...");
                     var overwrites = userChannel.PermissionOverwrites.Select(x => x.ConvertToBuilder()).ToList();
@@ -773,7 +774,7 @@ public class TempVoiceCommands : TempVoiceHelper
                     var blockedlist = new List<ulong>();
                     List<ulong> ids = new();
                     ids = Converter.ExtractUserIDsFromString(users);
-                    var staffrole = ctx.Guild.GetRole(GlobalProperties.StaffRoleId);
+                    var staffrole = ctx.Guild.GetRole(CurrentApplication.GlobalProperties.StaffRoleId);
                     var msg = await ctx.RespondAsync(
                         $"<a:loading_agc:1084157150747697203> **Lade...** Versuche {ids.Count} Nutzer zu blockieren...");
                     var overwrites = userChannel.PermissionOverwrites.Select(x => x.ConvertToBuilder()).ToList();
@@ -884,7 +885,7 @@ public class TempVoiceCommands : TempVoiceHelper
                     var unblocklist = new List<ulong>();
                     List<ulong> ids = new();
                     ids = Converter.ExtractUserIDsFromString(users);
-                    var staffrole = ctx.Guild.GetRole(GlobalProperties.StaffRoleId);
+                    var staffrole = ctx.Guild.GetRole(CurrentApplication.GlobalProperties.StaffRoleId);
                     var msg = await ctx.RespondAsync(
                         $"<a:loading_agc:1084157150747697203> **Lade...** Versuche {ids.Count} Nutzer zu entsperren...");
                     var overwrites = userChannel.PermissionOverwrites.Select(x => x.ConvertToBuilder()).ToList();
@@ -976,7 +977,7 @@ public class TempVoiceCommands : TempVoiceHelper
                     var permitusers = new List<ulong>();
                     List<ulong> ids = new();
                     ids = Converter.ExtractUserIDsFromString(users);
-                    var staffrole = ctx.Guild.GetRole(GlobalProperties.StaffRoleId);
+                    var staffrole = ctx.Guild.GetRole(CurrentApplication.GlobalProperties.StaffRoleId);
                     var msg = await ctx.RespondAsync(
                         $"<a:loading_agc:1084157150747697203> **Lade...** Versuche {ids.Count} Nutzer zuzulassen...");
                     var overwrites = userChannel.PermissionOverwrites.Select(x => x.ConvertToBuilder()).ToList();
@@ -1049,7 +1050,7 @@ public class TempVoiceCommands : TempVoiceHelper
                     var unpermitlist = new List<ulong>();
                     List<ulong> ids = new();
                     ids = Converter.ExtractUserIDsFromString(users);
-                    var staffrole = ctx.Guild.GetRole(GlobalProperties.StaffRoleId);
+                    var staffrole = ctx.Guild.GetRole(CurrentApplication.GlobalProperties.StaffRoleId);
                     var msg = await ctx.RespondAsync(
                         $"<a:loading_agc:1084157150747697203> **Lade...** Versuche {ids.Count} Nutzer unzupermitten...");
                     var overwrites = userChannel.PermissionOverwrites.Select(x => x.ConvertToBuilder()).ToList();

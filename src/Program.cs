@@ -13,175 +13,238 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using System.Reflection;
+using AGC_Management.Tasks;
+using AGC_Management.Utils;
 using DisCatSharp.ApplicationCommands;
+using DisCatSharp.ApplicationCommands.Attributes;
+using DisCatSharp.ApplicationCommands.EventArgs;
+using DisCatSharp.ApplicationCommands.Exceptions;
+using DreamyManagement.Utils;
+using Npgsql;
 
 namespace DreamyManagement;
 
-internal class Program : BaseCommandModule
+public class CurrentApplication
 {
-    private static void Main(string[] args)
-    {
-        MainAsync().GetAwaiter().GetResult();
-    }
+    public static DiscordClient DiscordClient { get; set; }
+    public static DiscordGuild TargetGuild { get; set; }
 
-    private static async Task MainAsync()
+    public static IServiceProvider ServiceProvider { get; set; }
+    public static string BotPrefix { get; set; }
+    public static HttpClient HttpClient { get; set; }
+
+
+
+    internal class Program : BaseCommandModule
     {
-        bool DebugMode;
-        try
+        private static void Main(string[] args)
         {
-            DebugMode = bool.Parse(BotConfig.GetConfig()["MainConfig"]["DebugMode"]);
-        }
-        catch
-        {
-            DebugMode = false;
+            MainAsync().GetAwaiter().GetResult();
         }
 
-        string DcApiToken = "";
-        try
+        private static async Task MainAsync()
         {
-            DcApiToken = DebugMode
-                ? BotConfig.GetConfig()["MainConfig"]["Discord_API_Token_DEB"]
-                : BotConfig.GetConfig()["MainConfig"]["Discord_API_Token"];
-        }
-        catch
-        {
+            bool DebugMode;
             try
             {
-                DcApiToken = BotConfig.GetConfig()["MainConfig"]["Discord_API_Token"];
+                DebugMode = bool.Parse(BotConfig.GetConfig()["MainConfig"]["DebugMode"]);
             }
             catch
             {
-                Console.WriteLine(
-                    "Der Discord API Token konnte nicht geladen werden.");
-                Console.WriteLine("Drücke eine beliebige Taste um das Programm zu beenden.");
-                Console.ReadKey();
-                Environment.Exit(0);
+                DebugMode = false;
             }
-        }
 
-        Log.Logger = new LoggerConfiguration()
-            .MinimumLevel.Debug()
-            .WriteTo.Console()
-            .CreateLogger();
-
-        var serviceProvider = new ServiceCollection()
-            .AddCatBoxServices(f => f.CatBoxUrl = new Uri("https://catbox.moe/user/api.php"))
-            .AddLogging(lb => lb.AddSerilog())
-            .BuildServiceProvider();
-
-
-
-        DatabaseService.OpenConnection();
-        var discord = new DiscordClient(new DiscordConfiguration
-        {
-            Token = DcApiToken,
-            TokenType = TokenType.Bot,
-            AutoReconnect = true,
-            MinimumLogLevel = LogLevel.Debug,
-            Intents = DiscordIntents.All,
-            LogTimestampFormat = "MMM dd yyyy - HH:mm:ss tt",
-            DeveloperUserId = GlobalProperties.BotOwnerId,
-            Locale = "de",
-            ServiceProvider = serviceProvider,
-            MessageCacheSize = 10000,
-            ShowReleaseNotesInUpdateCheck = false
-        });
-        discord.RegisterEventHandlers(Assembly.GetExecutingAssembly());
-        var commands = discord.UseCommandsNext(new CommandsNextConfiguration
-        {
-            PrefixResolver = GetPrefix,
-            EnableDms = false,
-            EnableMentionPrefix = true,
-            IgnoreExtraArguments = true,
-            EnableDefaultHelp = bool.Parse(BotConfig.GetConfig()["MainConfig"]["EnableBuiltInHelp"])
-        });
-        
-        
-        discord.ClientErrored += Discord_ClientErrored;
-        discord.UseInteractivity(new InteractivityConfiguration
-        {
-            Timeout = TimeSpan.FromMinutes(2)
-        });
-        commands.RegisterCommands(Assembly.GetExecutingAssembly());
-        commands.CommandErrored += Commands_CommandErrored;
-        await discord.ConnectAsync();
-
-        await StartTasks(discord);
-        await Task.Delay(-1);
-    }
-
-    private static Task StartTasks(DiscordClient discord)
-    {
-        //// start Warn Expire Task
-        ModerationSystemTasks MST = new();
-        MST.StartRemovingWarnsPeriodically(discord);
-
-        //// start TempVC Check Task
-        TempVoiceTasks TVT = new();
-        TVT.StartRemoveEmptyTempVoices(discord);
-        return Task.CompletedTask;
-    }
-
-
-    private static Task<int> GetPrefix(DiscordMessage message)
-    {
-        return Task.Run(() =>
-        {
-            string prefix;
-            if (GlobalProperties.DebugMode)
-                prefix = "!!!";
-            else
+            string DcApiToken = "";
+            try
+            {
+                DcApiToken = DebugMode
+                    ? BotConfig.GetConfig()["MainConfig"]["Discord_API_Token_DEB"]
+                    : BotConfig.GetConfig()["MainConfig"]["Discord_API_Token"];
+            }
+            catch
+            {
                 try
                 {
-                    prefix = BotConfig.GetConfig()["MainConfig"]["BotPrefix"];
+                    DcApiToken = BotConfig.GetConfig()["MainConfig"]["Discord_API_Token"];
                 }
                 catch
                 {
-                    prefix = "!!!"; //Fallback Config
+                    Console.WriteLine(
+                        "Der Discord API Token konnte nicht geladen werden.");
+                    Console.WriteLine("Drücke eine beliebige Taste um das Programm zu beenden.");
+                    Console.ReadKey();
+                    Environment.Exit(0);
+                }
+            }
+
+            Log.Logger = new LoggerConfiguration()
+                .MinimumLevel.Debug()
+                .WriteTo.Console()
+                .CreateLogger();
+
+            var dataSourceBuilder =
+                new NpgsqlDataSourceBuilder(DatabaseService.GetConnectionString());
+            var dataSource = dataSourceBuilder.Build();
+
+            var serviceProvider = new ServiceCollection()
+                .AddCatBoxServices(f => f.CatBoxUrl = new Uri("https://catbox.moe/user/api.php"))
+                .AddLogging(lb => lb.AddSerilog())
+                .AddSingleton(dataSource)
+                .BuildServiceProvider();
+            ServiceProvider = serviceProvider;
+            HttpClient = new HttpClient();
+
+
+
+
+            DatabaseService.OpenConnection();
+            var discord = new DiscordClient(new DiscordConfiguration
+            {
+                Token = DcApiToken,
+                TokenType = TokenType.Bot,
+                AutoReconnect = true,
+                MinimumLogLevel = LogLevel.Debug,
+                Intents = DiscordIntents.All,
+                LogTimestampFormat = "MMM dd yyyy - HH:mm:ss tt",
+                DeveloperUserId = GlobalProperties.BotOwnerId,
+                Locale = "de",
+                ServiceProvider = serviceProvider,
+                MessageCacheSize = 10000,
+                ShowReleaseNotesInUpdateCheck = false
+            });
+            discord.RegisterEventHandlers(Assembly.GetExecutingAssembly());
+            var commands = discord.UseCommandsNext(new CommandsNextConfiguration
+            {
+                PrefixResolver = GetPrefix,
+                EnableDms = false,
+                EnableMentionPrefix = true,
+                IgnoreExtraArguments = true,
+                EnableDefaultHelp = bool.Parse(BotConfig.GetConfig()["MainConfig"]["EnableBuiltInHelp"])
+            });
+
+
+            discord.ClientErrored += Discord_ClientErrored;
+            discord.UseInteractivity(new InteractivityConfiguration
+            {
+                Timeout = TimeSpan.FromMinutes(2)
+            });
+            commands.RegisterCommands(Assembly.GetExecutingAssembly());
+            commands.CommandErrored += Commands_CommandErrored;
+
+            var appCommands = discord.UseApplicationCommands(new ApplicationCommandsConfiguration
+            {
+                ServiceProvider = serviceProvider, DebugStartup = true, EnableDefaultHelp = false
+            });
+            appCommands.SlashCommandErrored += Discord_SlashCommandErrored;
+            appCommands.RegisterGlobalCommands(Assembly.GetExecutingAssembly());
+
+            await discord.ConnectAsync();
+
+            CurrentApplication.DiscordClient = discord;
+
+            await StartTasks(discord);
+            CurrentApplication.TargetGuild =
+                await discord.GetGuildAsync(ulong.Parse(BotConfig.GetConfig()["ServerConfig"]["ServerId"]));
+
+            await Task.Delay(-1);
+        }
+
+        private static async Task Discord_SlashCommandErrored(ApplicationCommandsExtension sender,
+            SlashCommandErrorEventArgs e)
+        {
+            if (e.Exception is SlashExecutionChecksFailedException)
+            {
+                var ex = (SlashExecutionChecksFailedException)e.Exception;
+                if (ex.FailedChecks.Any(x => x is ApplicationCommandRequireUserPermissionsAttribute))
+                {
+                    var embed = EmbedGenerator.GetErrorEmbed(
+                        "You don't have the required permissions to execute this command.");
+                    await e.Context.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource,
+                        new DiscordInteractionResponseBuilder().AddEmbed(embed).AsEphemeral());
+                    e.Handled = true;
+                    return;
                 }
 
-            int CommandStart = -1;
-            CommandStart = message.GetStringPrefixLength(prefix);
-            return CommandStart;
-        });
-    }
+                e.Handled = true;
+            }
+        }
 
+        private static Task StartTasks(DiscordClient discord)
+        {
+            //// start Warn Expire Task
+            ModerationSystemTasks MST = new();
+            MST.StartRemovingWarnsPeriodically(discord);
 
-    private static Task Discord_ClientErrored(DiscordClient sender, ClientErrorEventArgs e)
-    {
-        sender.Logger.LogError($"Exception occured: {e.Exception.GetType()}: {e.Exception.Message}");
-        sender.Logger.LogError($"Stacktrace: {e.Exception.GetType()}: {e.Exception.StackTrace}");
-        return Task.CompletedTask;
-    }
-
-    private static Task Commands_CommandErrored(CommandsNextExtension cn, CommandErrorEventArgs e)
-    {
-        // check if error is DisCatSharp.CommandsNext.Exceptions.CommandNotFoundException
-        if (e.Exception is CommandNotFoundException)
-            // ignore the error silently
+            _ = RecalculateRanks.LaunchLoops();
+            _ = CheckVCLevellingTask.Run();
+            _ = LevelUtils.RunLeaderboardUpdate();
+            //// start TempVC Check Task
+            TempVoiceTasks TVT = new();
+            TVT.StartRemoveEmptyTempVoices(discord);
             return Task.CompletedTask;
-        cn.Client.Logger.LogError($"Exception occured: {e.Exception.GetType()}: {e.Exception.Message}");
-        cn.Client.Logger.LogError($"Exception occured: {e.Exception.GetType()}: {e.Exception.StackTrace}");
+        }
 
-        return Task.CompletedTask;
+
+        private static Task<int> GetPrefix(DiscordMessage message)
+        {
+            return Task.Run(() =>
+            {
+                string prefix;
+                if (GlobalProperties.DebugMode)
+                    prefix = "!!!";
+                else
+                    try
+                    {
+                        prefix = BotConfig.GetConfig()["MainConfig"]["BotPrefix"];
+                    }
+                    catch
+                    {
+                        prefix = "!!!"; //Fallback Config
+                    }
+
+                int CommandStart = -1;
+                CommandStart = message.GetStringPrefixLength(prefix);
+                return CommandStart;
+            });
+        }
+
+
+        private static Task Discord_ClientErrored(DiscordClient sender, ClientErrorEventArgs e)
+        {
+            sender.Logger.LogError($"Exception occured: {e.Exception.GetType()}: {e.Exception.Message}");
+            sender.Logger.LogError($"Stacktrace: {e.Exception.GetType()}: {e.Exception.StackTrace}");
+            return Task.CompletedTask;
+        }
+
+        private static Task Commands_CommandErrored(CommandsNextExtension cn, CommandErrorEventArgs e)
+        {
+            // check if error is DisCatSharp.CommandsNext.Exceptions.CommandNotFoundException
+            if (e.Exception is CommandNotFoundException)
+                // ignore the error silently
+                return Task.CompletedTask;
+            cn.Client.Logger.LogError($"Exception occured: {e.Exception.GetType()}: {e.Exception.Message}");
+            cn.Client.Logger.LogError($"Exception occured: {e.Exception.GetType()}: {e.Exception.StackTrace}");
+
+            return Task.CompletedTask;
+        }
     }
-}
 
-public static class GlobalProperties
-{
-    // Server Staffrole ID
-    public static ulong StaffRoleId { get; } = ulong.Parse(BotConfig.GetConfig()["ServerConfig"]["StaffRoleId"]);
-
-    // Debug Mode
-    public static bool DebugMode { get; } = ParseBoolean(BotConfig.GetConfig()["MainConfig"]["DebugMode"]);
-
-    // Bot Owner ID
-    public static ulong BotOwnerId { get; } = ulong.Parse(BotConfig.GetConfig()["MainConfig"]["BotOwnerId"]);
-
-    private static bool ParseBoolean(string boolString)
+    public static class GlobalProperties
     {
-        if (bool.TryParse(boolString, out bool parsedBool))
-            return parsedBool;
-        return false;
+        // Server Staffrole ID
+        public static ulong StaffRoleId { get; } = ulong.Parse(BotConfig.GetConfig()["ServerConfig"]["StaffRoleId"]);
+
+        // Debug Mode
+        public static bool DebugMode { get; } = ParseBoolean(BotConfig.GetConfig()["MainConfig"]["DebugMode"]);
+
+        // Bot Owner ID
+        public static ulong BotOwnerId { get; } = ulong.Parse(BotConfig.GetConfig()["MainConfig"]["BotOwnerId"]);
+
+        private static bool ParseBoolean(string boolString)
+        {
+            if (bool.TryParse(boolString, out bool parsedBool))
+                return parsedBool;
+            return false;
+        }
     }
 }

@@ -9,6 +9,7 @@ using DisCatSharp.Exceptions;
 using DisCatSharp.Interactivity.Extensions;
 using DreamyManagement.Helpers;
 using DreamyManagement.Services.DatabaseHandler;
+using DreamyManagement.Utils;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using Npgsql;
@@ -28,13 +29,13 @@ public class ExtendedModerationSystem : ModerationSystem
     {
         using HttpClient client = new();
 
-        string apiKey = GlobalProperties.DebugMode
+        string apiKey = CurrentApplication.GlobalProperties.DebugMode
             ? BotConfig.GetConfig()["ModHQConfigDBG"]["API_Key"]
             : BotConfig.GetConfig()["ModHQConfig"]["API_Key"];
 
         client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", apiKey);
 
-        string apiUrl = GlobalProperties.DebugMode
+        string apiUrl = CurrentApplication.GlobalProperties.DebugMode
             ? BotConfig.GetConfig()["ModHQConfigDBG"]["API_URL"]
             : BotConfig.GetConfig()["ModHQConfig"]["API_URL"];
 
@@ -134,9 +135,9 @@ public class ExtendedModerationSystem : ModerationSystem
 
         try
         {
-            if (GlobalProperties.DebugMode)
+            if (CurrentApplication.GlobalProperties.DebugMode)
                 bs_enabled = bool.Parse(BotConfig.GetConfig()["ModHQConfigDBG"]["API_ACCESS_ENABLED"]);
-            if (!GlobalProperties.DebugMode)
+            if (!CurrentApplication.GlobalProperties.DebugMode)
                 bs_enabled = bool.Parse(BotConfig.GetConfig()["ModHQConfig"]["API_ACCESS_ENABLED"]);
         }
         catch (Exception)
@@ -169,7 +170,7 @@ public class ExtendedModerationSystem : ModerationSystem
         {
             var Teamler = false;
             List<DiscordMember> staffuser = ctx.Guild.Members
-                .Where(x => x.Value.Roles.Any(y => y.Id == GlobalProperties.StaffRoleId))
+                .Where(x => x.Value.Roles.Any(y => y.Id == CurrentApplication.GlobalProperties.StaffRoleId))
                 .Select(x => x.Value)
                 .ToList();
             string userindicator;

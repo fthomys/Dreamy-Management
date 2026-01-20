@@ -5,6 +5,7 @@ using DisCatSharp.Enums;
 using DisCatSharp.Exceptions;
 using DisCatSharp.Interactivity.Extensions;
 using DreamyManagement.Helpers;
+using DreamyManagement.Utils;
 
 namespace DreamyManagement.Commands.Moderation;
 
@@ -855,7 +856,7 @@ public class ModerationSystem : BaseCommandModule
             var banEmbed = banEmbedBuilder.Build();
             var staffrole = ctx.Guild.GetRole(ulong.Parse(BotConfig.GetConfig()["ServerConfig"]["StaffRoleId"]));
             var staffmembers = ctx.Guild.Members
-                .Where(x => x.Value.Roles.Any(y => y.Id == GlobalProperties.StaffRoleId))
+                .Where(x => x.Value.Roles.Any(y => y.Id == CurrentApplication.GlobalProperties.StaffRoleId))
                 .Select(x => x.Value)
                 .ToList();
             var staffWithBanPerms =
@@ -873,7 +874,7 @@ public class ModerationSystem : BaseCommandModule
             string staffMentionString;
             if (onlineStaffWithBanPerms.Count > 0)
             {
-                if (!GlobalProperties.DebugMode)
+                if (!CurrentApplication.GlobalProperties.DebugMode)
                     staffMentionString = string.Join(" ", onlineStaffWithBanPerms
                         .Where(member => member.Id != 441192596325531648)
                         .Select(member => member.Mention));
@@ -882,7 +883,7 @@ public class ModerationSystem : BaseCommandModule
             }
             else
             {
-                if (!GlobalProperties.DebugMode)
+                if (!CurrentApplication.GlobalProperties.DebugMode)
                     staffMentionString =
                         $"Kein Moderator online | <@&{BotConfig.GetConfig()["ServerConfig"]["AdminRoleId"]}> | <@&{BotConfig.GetConfig()["ServerConfig"]["ModRoleId"]}>";
                 else
@@ -1046,7 +1047,7 @@ public class ModerationSystem : BaseCommandModule
         var caseid = Helpers.Helpers.GenerateCaseID();
         var staffrole = ctx.Guild.GetRole(ulong.Parse(BotConfig.GetConfig()["ServerConfig"]["StaffRoleId"]));
         var staffmembers = ctx.Guild.Members
-            .Where(x => x.Value.Roles.Any(y => y.Id == GlobalProperties.StaffRoleId))
+            .Where(x => x.Value.Roles.Any(y => y.Id == CurrentApplication.GlobalProperties.StaffRoleId))
             .Select(x => x.Value)
             .ToList();
         var staffWithBanPerms = staffmembers.Where(x => x.Permissions.HasPermission(Permissions.BanMembers)).ToList();
@@ -1109,7 +1110,7 @@ public class ModerationSystem : BaseCommandModule
             string staffMentionString;
             if (onlineStaffWithBanPerms.Count > 0)
             {
-                if (!GlobalProperties.DebugMode)
+                if (!CurrentApplication.GlobalProperties.DebugMode)
                     staffMentionString = string.Join(" ", onlineStaffWithBanPerms
                         .Where(member => member.Id != 441192596325531648)
                         .Select(member => member.Mention));
@@ -1118,7 +1119,7 @@ public class ModerationSystem : BaseCommandModule
             }
             else
             {
-                if (!GlobalProperties.DebugMode)
+                if (!CurrentApplication.GlobalProperties.DebugMode)
                     staffMentionString =
                         $"Kein Moderator online | <@&{BotConfig.GetConfig()["ServerConfig"]["AdminRoleId"]}> | <@&{BotConfig.GetConfig()["ServerConfig"]["ModRoleId"]}>";
                 else

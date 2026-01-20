@@ -1683,7 +1683,7 @@ public class TempVoiceHelper : BaseCommandModule
             List<ulong> idlist = new();
             var overwrites = channel.PermissionOverwrites.Select(x => x.ConvertToBuilder())
                 .ToList();
-            DiscordRole? staffrole = interaction.Guild.GetRole(GlobalProperties.StaffRoleId);
+            DiscordRole? staffrole = interaction.Guild.GetRole(CurrentApplication.GlobalProperties.StaffRoleId);
 
             foreach (ulong id in users)
             {
