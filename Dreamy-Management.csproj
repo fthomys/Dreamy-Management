@@ -61,6 +61,7 @@
   <ItemGroup>
     <Folder Include="src\Commands\TempVC\" />
     <Folder Include="src\Enums\" />
+    <Folder Include="src\Eventlistener\" />
     <Folder Include="src\Helpers\TempVoice\" />
   </ItemGroup>
 
