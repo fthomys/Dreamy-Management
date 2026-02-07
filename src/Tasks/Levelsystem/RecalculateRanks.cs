@@ -14,6 +14,7 @@ public static class RecalculateRanks
     public static async Task LaunchLoops()
     {
 #if DEBUG
+        await StartRecalculateRanks();
 #else
         await StartRecalculateRanks();
 #endif
