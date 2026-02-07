@@ -14,7 +14,6 @@ public static class BotConfig
         try
         {
             var path = AppContext.BaseDirectory;
-            Console.WriteLine("Try to load from path: " + path);
             ConfigIni = parser.ReadFile("config.ini");
         }
         catch
