@@ -189,8 +189,6 @@ public static async Task UpdateLevelRoles(DiscordMember? member)
         }
 
         var currentRoleIds = member.Roles.Select(r => r.Id).ToHashSet();
-        // log role diff
-        Console.WriteLine($"{member.Username}: diff in roles: {string.Join(", ", currentRoleIds.Except(newRoleList))} added roles: {string.Join(", ", newRoleList.Except(currentRoleIds))}");
         if (!currentRoleIds.SetEquals(newRoleList))
         {
             var finalRoles = newRoleList
