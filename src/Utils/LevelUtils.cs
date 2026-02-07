@@ -159,35 +159,50 @@ public static class LevelUtils
     ///     Updates the level roles for a member.
     /// </summary>
     /// <param name="member">The DiscordMember whose level roles need to be updated.</param>
-    public static async Task UpdateLevelRoles(DiscordMember? member)
+public static async Task UpdateLevelRoles(DiscordMember? member)
+{
+    if (member == null || member.IsBot || member.IsPending == true) return;
+
+    try
     {
-        // Check if member is null
-        if (member == null) return;
+        var rankData = await GetRank(member.Id);
+        if (!rankData.ContainsKey(member.Id)) return;
 
-        if (member.IsBot) return;
+        var userLevel = rankData[member.Id].Level;
+        var rewards = (await GetLevelRewards()).OrderBy(r => r.Level).ToList();
+        var retainActive = await isRetainRoleActive();
 
-        if (member.IsPending is true) return;
+        var rewardRoleIds = rewards.Select(r => r.RoleId).ToHashSet();
+        var highestEligibleReward = rewards.Where(r => userLevel >= r.Level).LastOrDefault();
+        var newRoleList = member.Roles.Select(r => r.Id).ToList();
 
+        newRoleList.RemoveAll(roleId => rewardRoleIds.Contains(roleId));
 
-        try
+        if (retainActive)
         {
-            var rank = await GetRank(member.Id);
-            var level = rank[member.Id].Level;
-            var rewards = await GetLevelRewards();
-
-
-            var currentRoles = new HashSet<ulong>(member.Roles.Select(role => role.Id));
-
-            foreach (var reward in rewards)
-                if (currentRoles.Contains(reward.RoleId) && level < reward.Level)
-                    await member.RevokeRoleAsync(CurrentApplication.TargetGuild.GetRole(reward.RoleId));
-                else if (!currentRoles.Contains(reward.RoleId) && level >= reward.Level)
-                    await member.GrantRoleAsync(CurrentApplication.TargetGuild.GetRole(reward.RoleId));
+            var rolesToAdd = rewards.Where(r => userLevel >= r.Level).Select(r => r.RoleId);
+            newRoleList.AddRange(rolesToAdd);
         }
-        catch (Exception e)
+        else if (highestEligibleReward != null)
         {
+            newRoleList.Add(highestEligibleReward.RoleId);
+        }
+
+        var currentRoleIds = member.Roles.Select(r => r.Id).ToHashSet();
+        if (!currentRoleIds.SetEquals(newRoleList))
+        {
+            var finalRoles = newRoleList
+                .Select(id => member.Guild.GetRole(id))
+                .Where(role => role != null);
+
+            await member.ReplaceRolesAsync(finalRoles);
         }
     }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Fehler beim Batch-Update der Rollen für {member.Username}: {ex.Message}");
+    }
+}
 
     public static async Task<bool> IsRewardLevel(int level)
     {
@@ -195,6 +210,24 @@ public static class LevelUtils
         foreach (var reward in rewards)
             if (reward.Level == level)
                 return true;
+
+        return false;
+    }
+
+    private static async Task<bool> isRetainRoleActive()
+    {
+        var db = CurrentApplication.ServiceProvider.GetRequiredService<NpgsqlDataSource>();
+        var cmd = db.CreateCommand("SELECT retainroles FROM levelingsettings WHERE guildid = @guildid");
+        cmd.Parameters.AddWithValue("@guildid", (long)levelguildid);
+        await using var reader = await cmd.ExecuteReaderAsync();
+        if (reader.HasRows)
+            while (await reader.ReadAsync())
+            {
+                var retainRolesActive = reader.GetBoolean(0);
+                return retainRolesActive;
+            }
+        else
+            return false;
 
         return false;
     }
@@ -1079,24 +1112,18 @@ public static class LevelUtils
         var pingEnabled = await UserHasPingEnabled(user.Id);
         var isReward = await IsLevelRewarded(level);
         var rewardMessage = await GetLevelUpRewardMessage();
-        var reward = await GetRewardForaLevel(level);
-        var member = await user.ConvertToMember(CurrentApplication.TargetGuild);
+        var rewardData = await GetRewardForaLevel(level);
 
-        // Use StringBuilder for string concatenation
+        var member = await user.ConvertToMember(CurrentApplication.TargetGuild);
+        if (member == null) return;
+
+        await UpdateLevelRoles(member);
+
         var messageBuilder = new StringBuilder();
 
-        if (isReward)
+        if (isReward && rewardData != null && rewardData.ContainsKey(true))
         {
-            var role = CurrentApplication.TargetGuild.GetRole(reward[true]);
-            if (!member.Roles.Contains(role))
-                try
-                {
-                    await member.GrantRoleAsync(role);
-                }
-                catch (Exception e)
-                {
-                }
-
+            var role = await CurrentApplication.TargetGuild.GetRoleAsync(rewardData[true]);
             messageBuilder.Append(await MessageFormatter.FormatLevelUpMessage(rewardMessage, true, user, role));
         }
         else
@@ -1104,12 +1131,19 @@ public static class LevelUtils
             messageBuilder.Append(await MessageFormatter.FormatLevelUpMessage(levelUpMessage, false, user));
         }
 
-        var channel = CurrentApplication.TargetGuild.GetChannel(await GetLevelUpChannelId());
-        var messagebuilder = new DiscordMessageBuilder();
-        messagebuilder.WithContent(messageBuilder.ToString());
-        if (!pingEnabled) messagebuilder.WithAllowedMentions(Mentions.None);
+        var channelId = await GetLevelUpChannelId();
+        var channel = CurrentApplication.TargetGuild.GetChannel(channelId);
 
-        await channel.SendMessageAsync(messagebuilder);
+        if (channel != null)
+        {
+            var discordMessage = new DiscordMessageBuilder()
+                .WithContent(messageBuilder.ToString());
+
+            if (!pingEnabled)
+                discordMessage.WithAllowedMentions(Mentions.None);
+
+            await channel.SendMessageAsync(discordMessage);
+        }
     }
 
     private static async Task<bool> IsLevelRewarded(int level)
