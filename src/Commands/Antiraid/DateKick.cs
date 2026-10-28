@@ -31,7 +31,7 @@ public class DateKickEventhandler : BaseCommandModule
             var age = (DateTime.Now - member.CreationTimestamp.Date).Days;
             if (age < minAge)
             {
-                await DateKickUtils.NotifyUser(member, minAge);
+                await DateKickUtils.NotifyUser(member);
                 await member.RemoveAsync($"DateKick - Konto jünger als {minAge}");
                 await DateKickUtils.SendToSecurityLogChannel(member.Guild, member, minAge);
             }
@@ -89,12 +89,12 @@ internal class DateKickUtils
         await channel.SendMessageAsync(embed);
     }
 
-    public static async Task NotifyUser(DiscordMember member, int MinDays)
+    public static async Task NotifyUser(DiscordMember member)
     {
         var embed = new DiscordEmbedBuilder();
         embed.WithTitle("Du wurdest durch das DateKick-System entfernt!");
         embed.WithDescription(
-            $"Dein Account ist jünger als ``{MinDays} Tage alt`` und wurde daher nicht für den Server zugelassen!" +
+            "Dein Account ist zu neu und wurde daher nicht für den Server zugelassen!" +
             $" Dein Account wurde erstellt am {member.CreationTimestamp.Timestamp()}");
         embed.WithTimestamp(DateTime.Now);
         embed.WithColor(DiscordColor.Red);
